@@ -29,10 +29,7 @@ class Serializer
     {
         $output = [];
         if ($object instanceof Proxy) {
-            $reflectionClass = new ReflectionClass(ClassUtils::getRealClass(get_class($object)));
-            if (!$object->__isInitialized()) {
-                $object->__load();
-            }
+            $reflectionClass = self::getReflectionClassFromProxy($object);
         } else {
             $reflectionClass = new ReflectionClass(get_class($object));
         }
@@ -42,24 +39,15 @@ class Serializer
             $snapshotData = self::getClearSnapshotConfig();
             $property->setAccessible(true);
 
-
             $snapshotAttributes = $property->getAttributes(Snapshot::class);
             if (count($snapshotAttributes) === 1) {
                 $snapshotArguments = $snapshotAttributes[0]->getArguments();
-                $snapshotData['isSnapshot'] = true;
-                $snapshotData['isObject'] = array_key_exists('isObject', $snapshotArguments) && $snapshotArguments['isObject'] === true;
-                $snapshotData['isDate'] = array_key_exists('isDate', $snapshotArguments) && $snapshotArguments['isDate'] === true;
-                $snapshotData['isCollection'] = array_key_exists('isCollection', $snapshotArguments) && $snapshotArguments['isCollection'] === true;
-                $snapshotData['isTranslator'] = array_key_exists('translate', $snapshotArguments) && $snapshotArguments['translate'] === true;
+                $snapshotData = self::getSnapshotDataForAttribute($snapshotData, $snapshotArguments);
             } else {
                 $snapshot = $reader->getPropertyAnnotation($property, Snapshot::class);
 
                 if ($snapshot !== null) {
-                    $snapshotData['isSnapshot'] = true;
-                    $snapshotData['isObject'] = $snapshot->isObject === true;
-                    $snapshotData['isDate'] = $snapshot->isDate === true;
-                    $snapshotData['isCollection'] = $snapshot->isCollection === true;
-                    $snapshotData['isTranslator'] = $snapshot->translate === true;
+                    $snapshotData = self::getSnapshotDataForAnnotation($snapshotData, $snapshot);
                 }
             }
 
@@ -75,7 +63,11 @@ class Serializer
                     $value = [];
                     if ($collection->count() > 0) {
                         foreach ($collection as $item) {
-                            $value[] = self::getSnapshot($item);
+                            if (is_object($item)) {
+                                $value[] = self::getSnapshot($item);
+                            } else {
+                                $value[] = $item;
+                            }
                         }
                     }
                 } else {
@@ -98,16 +90,12 @@ class Serializer
             $snapshotAttributes = $method->getAttributes(Snapshot::class);
             if (count($snapshotAttributes) === 1) {
                 $snapshotArguments = $snapshotAttributes[0]->getArguments();
-                $snapshotData['isSnapshot'] = true;
-                $snapshotData['isRoute'] = array_key_exists('isRoute', $snapshotArguments) && $snapshotArguments['isRoute'] === true;
-                $snapshotData['fieldName'] = array_key_exists('fieldName', $snapshotArguments) ? $snapshotArguments['fieldName'] : '';
+                $snapshotData = self::getMethodSnapshotDataForAttribute($snapshotData, $snapshotArguments);
             } else {
                 $snapshot = $reader->getMethodAnnotation($method, Snapshot::class);
 
                 if ($snapshot !== null) {
-                    $snapshotData['isSnapshot'] = true;
-                    $snapshotData['isRoute'] = $snapshot->isRoute === true;
-                    $snapshotData['fieldName'] = $snapshot->fieldName;
+                    $snapshotData = self::getMethodSnapshotDataForAnnotation($snapshotData, $snapshot);
                 }
             }
 
@@ -139,6 +127,76 @@ class Serializer
             'isRoute' => false,
             'fieldName' => ''
         ];
+    }
+
+    /**
+     * @param Proxy $object
+     * @return ReflectionClass
+     * @throws ReflectionException
+     */
+    private static function getReflectionClassFromProxy(Proxy $object): ReflectionClass
+    {
+        $reflectionClass = new ReflectionClass(ClassUtils::getRealClass(get_class($object)));
+        if (!$object->__isInitialized()) {
+            $object->__load();
+        }
+        return $reflectionClass;
+    }
+
+    /**
+     * @param array $snapshotData
+     * @param array $snapshotArguments
+     * @return array
+     */
+    private static function getSnapshotDataForAttribute(array $snapshotData, array $snapshotArguments): array
+    {
+        $snapshotData['isSnapshot'] = true;
+        $snapshotData['isObject'] = array_key_exists('isObject', $snapshotArguments) && $snapshotArguments['isObject'] === true;
+        $snapshotData['isDate'] = array_key_exists('isDate', $snapshotArguments) && $snapshotArguments['isDate'] === true;
+        $snapshotData['isCollection'] = array_key_exists('isCollection', $snapshotArguments) && $snapshotArguments['isCollection'] === true;
+        $snapshotData['isTranslator'] = array_key_exists('translate', $snapshotArguments) && $snapshotArguments['translate'] === true;
+        return $snapshotData;
+    }
+
+    /**
+     * @param array $snapshotData
+     * @param mixed $snapshot
+     * @return array
+     */
+    private static function getSnapshotDataForAnnotation(array $snapshotData, mixed $snapshot): array
+    {
+        $snapshotData['isSnapshot'] = true;
+        $snapshotData['isObject'] = $snapshot->isObject === true;
+        $snapshotData['isDate'] = $snapshot->isDate === true;
+        $snapshotData['isCollection'] = $snapshot->isCollection === true;
+        $snapshotData['isTranslator'] = $snapshot->translate === true;
+        return $snapshotData;
+    }
+
+    /**
+     * @param array $snapshotData
+     * @param array $snapshotArguments
+     * @return array
+     */
+    private static function getMethodSnapshotDataForAttribute(array $snapshotData, array $snapshotArguments): array
+    {
+        $snapshotData['isSnapshot'] = true;
+        $snapshotData['isRoute'] = array_key_exists('isRoute', $snapshotArguments) && $snapshotArguments['isRoute'] === true;
+        $snapshotData['fieldName'] = array_key_exists('fieldName', $snapshotArguments) ? $snapshotArguments['fieldName'] : '';
+        return $snapshotData;
+    }
+
+    /**
+     * @param array $snapshotData
+     * @param mixed $snapshot
+     * @return array
+     */
+    private static function getMethodSnapshotDataForAnnotation(array $snapshotData, mixed $snapshot): array
+    {
+        $snapshotData['isSnapshot'] = true;
+        $snapshotData['isRoute'] = $snapshot->isRoute === true;
+        $snapshotData['fieldName'] = $snapshot->fieldName;
+        return $snapshotData;
     }
 
 }

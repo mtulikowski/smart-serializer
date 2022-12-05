@@ -18,6 +18,12 @@
             "Smartgroup\\SmartSerializer\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Smartgroup\\SmartSerializer\\Tests\\": "tests/",
+            "Smartgroup\\SmartSerializer\\Tests\\Examples\\": "tests/Examples/"
+        }
+    },
     "authors": [
         {
             "name": "mtulikowski",
