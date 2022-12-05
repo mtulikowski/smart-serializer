@@ -1,0 +1,28 @@
+{
+    "name": "smartgroup/smart-serializer",
+    "description": "Smart-serializer is a tiny library which allows to serialize PHP objects. It supports routes, translations and nested objects of Symfony.",
+    "type": "library",
+    "require": {
+        "php": "^8.0",
+        "doctrine/orm": "^2.13",
+        "doctrine/annotations": "^1.13.3",
+        "symfony/translation": "^6.2",
+        "symfony/routing": "^6.2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Smartgroup\\SmartSerializer\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "mtulikowski",
+            "email": "mariusz@tulikowski.eu"
+        }
+    ],
+    "minimum-stability": "stable"
+}
